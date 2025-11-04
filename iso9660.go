@@ -180,7 +180,9 @@ func (de *DirectoryEntry) UnmarshalBinary(data []byte) error {
 
 	// add padding if identifier length was even]
 	idPaddingLen := (identifierLen + 1) % 2
-	de.SystemUse = data[33+identifierLen+idPaddingLen : length]
+	systemUseData := data[33+identifierLen+idPaddingLen : length]
+	de.SystemUse = make([]byte, len(systemUseData))
+	copy(de.SystemUse, systemUseData)
 
 	return nil
 }

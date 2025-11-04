@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 )
 
 /* The following types of Rock Ridge records are being handled in some way:
@@ -18,10 +19,9 @@ import (
  * - [ ] SF (RR 4.1.7: file data in sparse file format)
  */
 
-const (
-	RockRidgeIdentifier = "RRIP_1991A"
-	RockRidgeVersion    = 1
-)
+var RockRidgeIdentifiers = []string{"IEEE_P1282", "RRIP_1991A"}
+
+const RockRidgeVersion = 1
 
 type RockRidgeNameEntry struct {
 	Flags byte
@@ -35,7 +35,7 @@ func suspHasRockRidge(se SystemUseEntrySlice) (bool, error) {
 	}
 
 	for _, entry := range extensions {
-		if entry.Identifier == RockRidgeIdentifier && entry.Version == RockRidgeVersion {
+		if slices.Contains(RockRidgeIdentifiers, entry.Identifier) && entry.Version == RockRidgeVersion {
 			return true, nil
 		}
 	}
