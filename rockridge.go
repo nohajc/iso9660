@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"slices"
+	"strings"
 )
 
 /* The following types of Rock Ridge records are being handled in some way:
@@ -26,6 +27,10 @@ const RockRidgeVersion = 1
 type RockRidgeNameEntry struct {
 	Flags byte
 	Name  string
+}
+
+type RockRidgeSymlinkEntry struct {
+	TargetComponent string
 }
 
 func suspHasRockRidge(se SystemUseEntrySlice) (bool, error) {
@@ -69,6 +74,18 @@ func (s SystemUseEntrySlice) GetPosixAttr() (fs.FileMode, error) {
 	return 0, fmt.Errorf("mandatory entry PX not found")
 }
 
+func (s SystemUseEntrySlice) GetSymlinkTarget() string {
+	var target string
+	for _, entry := range s {
+		if entry.Type() == "SL" {
+			sl := unmarshalRockRidgeSymlinkEntry(entry)
+			target += sl.TargetComponent
+		}
+	}
+
+	return target
+}
+
 func umarshalRockRidgeAttrEntry(e SystemUseEntry) (fs.FileMode, error) {
 	rrMode, err := UnmarshalUint32LSBMSB(e.Data()[0:8])
 	if err != nil {
@@ -95,5 +112,34 @@ func umarshalRockRidgeNameEntry(e SystemUseEntry) *RockRidgeNameEntry {
 	return &RockRidgeNameEntry{
 		Flags: e.Data()[0],
 		Name:  string(e.Data()[1:]),
+	}
+}
+
+func unmarshalRockRidgeSymlinkEntry(e SystemUseEntry) *RockRidgeSymlinkEntry {
+	data := e.Data()[1:]
+	lastEntry := e.Data()[0]&0x01 == 0
+	var targetComponent string
+
+	for len(data) > 0 {
+		flags := data[0]
+		compLen := data[1]
+		if flags&0x02 != 0 {
+			targetComponent += "."
+		} else if flags&0x04 != 0 {
+			targetComponent += ".."
+		} else if flags&0x08 != 0 {
+			targetComponent += "/"
+		} else if compLen > 0 {
+			targetComponent += string(data[2 : 2+compLen])
+		}
+		data = data[2+compLen:]
+
+		lastRecordInLastEntry := len(data) == 0 && lastEntry
+		if !lastRecordInLastEntry && flags&0x01 == 0 && !strings.HasSuffix(targetComponent, "/") {
+			targetComponent += "/"
+		}
+	}
+	return &RockRidgeSymlinkEntry{
+		TargetComponent: targetComponent,
 	}
 }

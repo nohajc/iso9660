@@ -119,6 +119,13 @@ func (f *File) Mode() os.FileMode {
 	return mode
 }
 
+func (f *File) SymlinkTarget() string {
+	if f.hasRockRidge() {
+		return f.de.SystemUseEntries.GetSymlinkTarget()
+	}
+	return ""
+}
+
 // Name returns the base name of the given entry
 func (f *File) Name() string {
 	if f.hasRockRidge() {
